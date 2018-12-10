@@ -1,7 +1,7 @@
 close all, clear all, clc;
 %% Cuda info of PC:
-g=gpuDevice;
-reset(g)
+%g=gpuDevice;
+%reset(g)
 % disp(g.FreeMemory)
 % cudaDeviceSynchronize();
 % auto err = cudaGetLastError();
@@ -10,12 +10,16 @@ reset(g)
 % end
 
 %% Load Data
-unzip('v_200x400.zip');  
+% unzip('v_200x400.zip');  
 imds = imageDatastore('v_200x400', ...
     'IncludeSubfolders',true, ...
     'LabelSource','foldernames'); 
+%% Resizing images to fin googleNet
+% imds = imresize(imds1.read(), [224 224]);
+imds.ReadSize = numpartitions(imds);
+imds.ReadFcn = @(loc)imresize(imread(loc),[224,224]);
 %% Split Data
-[imdsTrain,imdsValidation] = splitEachLabel(imds,0.7);
+[imdsTrain,imdsValidation] = splitEachLabel(imds,0.8);
 
 %% Load Pretrained Net
 net = googlenet;
@@ -56,22 +60,22 @@ ylim([0,10])
 layers = lgraph.Layers;
 connections = lgraph.Connections;
 
-layers(1:10) = freezeWeights(layers(1:10));
+layers(1:5) = freezeWeights(layers(1:5));
 lgraph = createLgraphUsingConnections(layers,connections);
 
 %% Aumenta el training set
-pixelRange = [-30 30];
-scaleRange = [0.9 1.1];
-imageAugmenter = imageDataAugmenter( ...
-    'RandXReflection',true, ...
-    'RandXTranslation',pixelRange, ...
-    'RandYTranslation',pixelRange, ...
-    'RandXScale',scaleRange, ...
-    'RandYScale',scaleRange);
-augimdsTrain = augmentedImageDatastore(inputSize(1:2),imdsTrain, ...
-    'DataAugmentation',imageAugmenter);
+% pixelRange = [-30 30];
+% scaleRange = [0.9 1.1];
+% imageAugmenter = imageDataAugmenter( ...
+%     'RandXReflection',true, ...
+%     'RandXTranslation',pixelRange, ...
+%     'RandYTranslation',pixelRange, ...
+%     'RandXScale',scaleRange, ...
+%     'RandYScale',scaleRange);
+% augimdsTrain = augmentedImageDatastore(inputSize(1:2),imdsTrain, ...
+%     'DataAugmentation',imageAugmenter);
 %% Aumenta el test set
-augimdsValidation = augmentedImageDatastore(inputSize(1:2),imdsValidation);
+% augimdsValidation = augmentedImageDatastore(inputSize(1:2),imdsValidation);
 %% Parametros de entrenamiento
 % Linea 82 debe eliminarse para que use GPU por defecto o seleccionar
 % cpu/gpu
@@ -81,15 +85,18 @@ options = trainingOptions('sgdm', ...
     'InitialLearnRate',3e-4, ...
     'Shuffle','every-epoch', ...
     'ExecutionEnvironment', 'auto', ...
-    'ValidationData',augimdsValidation, ...
+    'ValidationData',imdsValidation, ...
     'ValidationFrequency',3, ...
-    'Verbose',false, ...
+    'Verbose',true, ...
     'Plots','training-progress');
 %% Entrenamiento
-net = trainNetwork(augimdsTrain,lgraph,options);
+net = trainNetwork(imdsTrain,lgraph,options);
 %% Validacion
-[YPred,probs] = classify(net,augimdsValidation);
+[YPred,probs] = classify(net,imdsValidation);
 accuracy = mean(YPred == imdsValidation.Labels)
+%% Matriz de Confusion
+plotconfusion(imdsValidation.Labels,YPred);
+[c1,cm1,ind1,per1] = confusion(YPred,imdsValidation.Labels);
 %% Testeo
 idx = randperm(numel(imdsValidation.Files),4);
 figure
