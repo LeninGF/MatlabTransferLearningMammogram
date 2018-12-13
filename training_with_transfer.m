@@ -60,7 +60,7 @@ ylim([0,10])
 layers = lgraph.Layers;
 connections = lgraph.Connections;
 
-layers(1:5) = freezeWeights(layers(1:5));
+layers(1:40) = freezeWeights(layers(1:40));
 lgraph = createLgraphUsingConnections(layers,connections);
 
 %% Aumenta el training set
@@ -84,7 +84,7 @@ options = trainingOptions('sgdm', ...
     'MaxEpochs',6, ...
     'InitialLearnRate',3e-4, ...
     'Shuffle','every-epoch', ...
-    'ExecutionEnvironment', 'auto', ...
+    'ExecutionEnvironment', 'gpu', ...
     'ValidationData',imdsValidation, ...
     'ValidationFrequency',3, ...
     'Verbose',true, ...
@@ -96,7 +96,8 @@ net = trainNetwork(imdsTrain,lgraph,options);
 accuracy = mean(YPred == imdsValidation.Labels)
 %% Matriz de Confusion
 plotconfusion(imdsValidation.Labels,YPred);
-[c1,cm1,ind1,per1] = confusion(YPred,imdsValidation.Labels);
+% [c1,cm1,ind1,per1] = confusion(YPred,imdsValidation.Labels);   % Esta
+% linea no funciona
 %% Testeo
 idx = randperm(numel(imdsValidation.Files),4);
 figure
@@ -107,3 +108,5 @@ for i = 1:4
     label = YPred(idx(i));
     title(string(label) + ", " + num2str(100*max(probs(idx(i),:)),3) + "%");
 end
+
+save('model', 'net');
