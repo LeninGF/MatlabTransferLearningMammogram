@@ -18,7 +18,8 @@ imds = imageDatastore('data_rgb', ...
 [imdsTrain,imdsValidation] = splitEachLabel(imds,0.8);
 
 %% Load Pretrained Net
-net = googlenet;
+% net = googlenet;
+net = vgg19();
 analyzeNetwork(net);
 inputSize = net.Layers(1).InputSize;
 %% Extract the layer graph from the trained network. 
@@ -56,15 +57,16 @@ ylim([0,10])
 layers = lgraph.Layers;
 connections = lgraph.Connections;
 
-layers(1:125) = freezeWeights(layers(1:125));
+layers(1:29) = freezeWeights(layers(1:29));
 lgraph = createLgraphUsingConnections(layers,connections);
 
 %% Aumenta el training set
 pixelRange = [-30 30];
 scaleRange = [0.9 1.1];
-rotation_scale = [0 360];
+rotation_scale = [-90 90];
 imageAugmenter = imageDataAugmenter( ...
     'RandXReflection',true, ...
+    'RandYReflection',true, ...
     'RandXTranslation',pixelRange, ...
     'RandYTranslation',pixelRange, ...
     'RandXScale',scaleRange, ...
@@ -78,9 +80,9 @@ augimdsValidation = augmentedImageDatastore(inputSize(1:2),imdsValidation);
 % Linea 82 debe eliminarse para que use GPU por defecto o seleccionar
 % cpu/gpu
 options = trainingOptions('sgdm', ...
-    'MiniBatchSize',256, ...
-    'MaxEpochs',80, ...
-    'InitialLearnRate',1e-2, ...
+    'MiniBatchSize',512, ...
+    'MaxEpochs',100, ...
+    'InitialLearnRate',1e-4, ...
     'Shuffle','every-epoch', ...
     'ExecutionEnvironment', 'parallel', ...
     'ValidationData',augimdsValidation, ...
@@ -92,6 +94,9 @@ net = trainNetwork(augimdsTrain,lgraph,options);
 %% Validacion
 [YPred,probs] = classify(net,augimdsValidation);
 accuracy = mean(YPred == imdsValidation.Labels)
+%% Matriz de confusion
+plotconfusion(imdsValidation.Labels, YPred);
+
 %% Testeo
 idx = randperm(numel(imdsValidation.Files),4);
 figure
@@ -103,4 +108,7 @@ for i = 1:4
     title(string(label) + ", " + num2str(100*max(probs(idx(i),:)),3) + "%");
 end
 
-save('modelo1', 'net')
+% [tpr,fpr,thresholds] = roc(targets,outputs)  PROBAR ESTA LINEA
+save('modelo1', 'net');
+save('imdstrain', 'imdsTrain');
+save('imdsvalid', 'imdsValidation');
