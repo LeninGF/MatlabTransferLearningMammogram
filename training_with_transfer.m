@@ -91,6 +91,9 @@ net = trainNetwork(augimdsTrain,lgraph,options);
 %% Validacion
 [YPred,probs] = classify(net,augimdsValidation);
 accuracy = mean(YPred == imdsValidation.Labels)
+%% Matriz de confusion
+plotconfusion(imdsValidation.Labels, YPred);
+
 %% Testeo
 idx = randperm(numel(imdsValidation.Files),4);
 figure
@@ -103,3 +106,5 @@ for i = 1:4
 end
 
 save('modelo1', 'net')
+save('imdstrain', 'imdsTrain');
+save('imdsvalid', 'imdsValidation');
