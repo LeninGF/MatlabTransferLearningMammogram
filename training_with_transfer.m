@@ -106,5 +106,4 @@ for i = 1:4
 end
 
 save('modelo1', 'net')
-save('imdstrain', 'imdsTrain');
-save('imdsvalid', 'imdsValidation');
+ 
